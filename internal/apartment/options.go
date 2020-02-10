@@ -1,7 +1,7 @@
 package apartment
 
 type options struct {
-	limit int
+	limit  int
 	offset int
 }
 
