@@ -118,6 +118,7 @@ func addHouse(ctx context.Context, tx *sqlx.Tx, house *models.House, acName *str
 			")",
 		map[string]interface{}{
 			"city":     house.City,
+			"district": house.District,
 			"address":  house.Address,
 			"corpus":   house.Corpus,
 			"ac_name":  acName,

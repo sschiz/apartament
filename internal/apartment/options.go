@@ -1,8 +1,8 @@
 package apartment
 
 type Options struct {
-	limit  int
-	offset int
+	Limit  int
+	Offset int
 }
 
 type Option interface {
@@ -17,14 +17,18 @@ func (f optionFunc) Apply(o *Options) {
 
 func WithLimit(limit int) Option {
 	return optionFunc(func(o *Options) {
-		o.limit = limit
+		o.Limit = limit
 	})
 }
 
 func WithOffset(offset int) Option {
 	return optionFunc(func(o *Options) {
-		o.offset = offset
+		o.Offset = offset
 	})
 }
 
-const WithoutLimit int = -1 // default limit
+// Options
+const (
+	DefaultLimit  int = -1
+	DefaultOffset int = 0
+)
