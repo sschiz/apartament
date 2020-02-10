@@ -1,28 +1,30 @@
 package apartment
 
-type options struct {
+type Options struct {
 	limit  int
 	offset int
 }
 
 type Option interface {
-	apply(*options)
+	Apply(*Options)
 }
 
-type optionFunc func(*options)
+type optionFunc func(*Options)
 
-func (f optionFunc) apply(o *options) {
+func (f optionFunc) Apply(o *Options) {
 	f(o)
 }
 
 func WithLimit(limit int) Option {
-	return optionFunc(func(o *options) {
+	return optionFunc(func(o *Options) {
 		o.limit = limit
 	})
 }
 
 func WithOffset(offset int) Option {
-	return optionFunc(func(o *options) {
+	return optionFunc(func(o *Options) {
 		o.offset = offset
 	})
 }
+
+const WithoutLimit int = -1 // default limit
