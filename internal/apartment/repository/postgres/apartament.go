@@ -114,11 +114,10 @@ func addHouse(ctx context.Context, tx *sqlx.Tx, house *models.House, acName *str
 		"INSERT INTO houses (city, district, address, corpus, ac_name) "+
 			"SELECT :city, :district, :address, :corpus, :ac_name "+
 			"WHERE NOT EXISTS("+
-			"SELECT * FROM houses WHERE city = :city AND district = :district AND address = :address AND corpus = :corpus"+
+			"SELECT * FROM houses WHERE city = :city AND address = :address AND corpus = :corpus"+
 			")",
 		map[string]interface{}{
 			"city":     house.City,
-			"district": house.District,
 			"address":  house.Address,
 			"corpus":   house.Corpus,
 			"ac_name":  acName,
