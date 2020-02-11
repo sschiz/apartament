@@ -5,6 +5,7 @@ import (
 	"github.com/sschiz/apartament/internal/apartment"
 	"github.com/sschiz/apartament/models"
 	"net/http"
+	"strconv"
 )
 
 type Handler struct {
@@ -32,32 +33,58 @@ func (h *Handler) Create(c *gin.Context) {
 
 func (h *Handler) Get(c *gin.Context) {
 	inp := new(models.Apartment)
-	if err := c.BindJSON(inp); err != nil {
+	if err := c.ShouldBindJSON(inp); err != nil {
 		c.AbortWithStatus(http.StatusInternalServerError)
 		return
 	}
 
 	var opts []apartment.Option
 
-	limit, ok := c.Get("limit")
+	limit, ok := c.GetQuery("limit")
+
 	if ok {
-		opts = append(opts, apartment.WithLimit(limit.(int)))
+		limit, err := strconv.Atoi(limit)
+
+		if err != nil {
+			c.JSON(http.StatusBadRequest,
+				map[string]interface{}{
+					"error": "wrong limit",
+				},
+			)
+			return
+		}
+
+		opts = append(opts, apartment.WithLimit(limit))
 	}
 
-	offset, ok := c.Get("offset")
+	offset, ok := c.GetQuery("offset")
 	if ok {
-		opts = append(opts, apartment.WithOffset(offset.(int)))
+		offset, err := strconv.Atoi(offset)
+
+		if err != nil {
+			c.JSON(http.StatusBadRequest,
+				map[string]interface{}{
+					"error": "wrong offset",
+				},
+			)
+			return
+		}
+
+		opts = append(opts, apartment.WithOffset(offset))
 	}
 
-	orderField, ok := c.Get("order_field")
+	orderField, ok := c.GetQuery("order_field")
 	if ok {
-		opts = append(opts, apartment.WithOrder(orderField.(string)))
+		opts = append(opts, apartment.WithOrder(orderField))
 	}
 
-	if _, err := h.useCase.Get(c.Request.Context(), inp, opts...); err != nil {
+	apts, err := h.useCase.Get(c.Request.Context(), inp, opts...)
+	if err != nil {
 		c.AbortWithStatus(http.StatusInternalServerError)
 		return
 	}
 
-	c.Status(http.StatusOK)
+	c.JSON(http.StatusOK, map[string]interface{}{
+		"apartments": apts,
+	})
 }
