@@ -1,9 +1,9 @@
 package models
 
 type House struct {
-	City     string
-	District string
-	Address  string
-	Corpus   string
-	Floors   int
+	City     string `json:"city"`
+	District string `json:"district"`
+	Address  string `json:"address"`
+	Corpus   string `json:"corpus"`
+	Floors   int    `json:"floors"`
 }

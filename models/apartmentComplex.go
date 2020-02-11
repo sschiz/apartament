@@ -1,6 +1,6 @@
 package models
 
 type ApartmentComplex struct {
-	Name       string
-	Apartments [2]int
+	Name       string `json:"name"`
+	Apartments [2]int `json:"min_max_apartments"`
 }
