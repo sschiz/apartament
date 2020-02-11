@@ -228,7 +228,6 @@ func (a ApartmentRepository) Get(ctx context.Context, at *models.Apartment, opts
 	where := generateWhere(at)
 
 	query += " " + where + " " + optsPart
-	fmt.Println(query)
 	rows, err := a.db.QueryxContext(ctx, query)
 	if err != nil {
 		return nil, err
