@@ -2,11 +2,48 @@ package postgres
 
 import (
 	"context"
+	"fmt"
 	"github.com/jmoiron/sqlx"
 	_ "github.com/lib/pq" // postgres driver
 	"github.com/sschiz/apartament/internal/apartment"
 	"github.com/sschiz/apartament/models"
+	"strings"
 )
+
+type apt struct {
+	Rooms        int
+	Area         float64
+	Floor        int
+	Rent         float64
+	City         string
+	District     string
+	Address      string
+	Corpus       string
+	Floors       int
+	Name         string
+	MinAptNumber int `db:"min_apartment_number"`
+	MaxAptNumber int `db:"max_apartment_number"`
+}
+
+func (a apt) toApartment() *models.Apartment {
+	return &models.Apartment{
+		Floor: a.Floor,
+		Rooms: a.Rooms,
+		Area:  a.Area,
+		Rent:  a.Rent,
+		House: &models.House{
+			City:     a.City,
+			District: a.District,
+			Address:  a.Address,
+			Corpus:   a.Corpus,
+			Floors:   a.Floors,
+		},
+		ApartmentComplex: &models.ApartmentComplex{
+			Name:       a.Name,
+			Apartments: [2]int{a.MaxAptNumber, a.MaxAptNumber},
+		},
+	}
+}
 
 type ApartmentRepository struct {
 	db *sqlx.DB
@@ -62,10 +99,6 @@ func (a ApartmentRepository) Create(ctx context.Context, apartment *models.Apart
 	}
 
 	return tx.Commit()
-}
-
-func (a ApartmentRepository) Get(ctx context.Context, apartment *models.Apartment, opts ...apartment.Option) ([]*models.Apartment, error) {
-	panic("implement me")
 }
 
 func addAC(ctx context.Context, tx *sqlx.Tx, ac *models.ApartmentComplex) (name *string, err error) {
@@ -136,4 +169,119 @@ func addHouse(ctx context.Context, tx *sqlx.Tx, house *models.House, acName *str
 	).Scan(&res)
 
 	return
+}
+
+func (a ApartmentRepository) Get(ctx context.Context, at *models.Apartment, opts ...apartment.Option) ([]*models.Apartment, error) {
+	if at.House == nil || len(at.House.City) == 0 {
+		return nil, apartment.ErrWrongHouse
+	}
+	if len(at.House.District) == 0 && len(at.House.Address) == 0 {
+		return nil, apartment.ErrWrongHouse
+	}
+
+	options := apartment.Options{
+		Limit:      apartment.DefaultLimit,
+		Offset:     apartment.DefaultOffset,
+		OrderField: apartment.DefaultOrderField,
+	}
+
+	for _, o := range opts {
+		o.Apply(&options)
+	}
+
+	var optsPart string
+	if options.OrderField != apartment.DefaultOrderField {
+		optsPart += fmt.Sprintf("ORDER BY %s ", options.OrderField)
+	}
+	if options.Limit != apartment.DefaultLimit {
+		optsPart += fmt.Sprintf("LIMIT %d ", options.Limit)
+	}
+	if options.Offset != apartment.DefaultOffset {
+		optsPart += fmt.Sprintf("OFFSET %d", options.Offset)
+	}
+
+	query := "SELECT rooms," +
+		"area," +
+		"rent::numeric," +
+		"city," +
+		"floor," +
+		"district," +
+		"address," +
+		"corpus," +
+		"floors," +
+		"name," +
+		"min_apartment_number," +
+		"max_apartment_number " +
+		"FROM apartments " +
+		"INNER JOIN houses h on apartments.house_id = h.id " +
+		"INNER JOIN apartment_complexes ac on h.ac_name = ac.name WHERE"
+
+	where := generateWhere(at)
+
+	query += " " + where + " " + optsPart
+	println(query)
+
+	rows, err := a.db.QueryxContext(ctx, query)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var res []*models.Apartment
+	for rows.Next() {
+		apt := &apt{}
+		err := rows.StructScan(apt)
+		if err != nil {
+			return nil, err
+		}
+
+		res = append(res, apt.toApartment())
+	}
+
+	return res, nil
+}
+
+func generateWhere(apt *models.Apartment) string {
+	conditions := make([]string, 0, 10)
+	if apt.Floor != 0 {
+		conditions = append(conditions, fmt.Sprint("floor = ", apt.Floor))
+	}
+
+	if apt.Rooms != 0 {
+		conditions = append(conditions, fmt.Sprint("rooms = ", apt.Rooms))
+	}
+
+	if apt.Rent != 0 {
+		conditions = append(conditions, fmt.Sprint("rent::numeric = ", apt.Rent))
+	}
+
+	if apt.Area != 0 {
+		conditions = append(conditions, fmt.Sprint("area = ", apt.Area))
+	}
+
+	if apt.ApartmentComplex != nil && len(apt.ApartmentComplex.Name) != 0 {
+		conditions = append(conditions, "name = '"+apt.ApartmentComplex.Name+"'")
+	}
+
+	if len(apt.House.City) != 0 {
+		conditions = append(conditions, "city = '"+apt.House.City+"'")
+	}
+
+	if len(apt.House.District) != 0 {
+		conditions = append(conditions, "district = '"+apt.House.District+"'")
+	}
+
+	if len(apt.House.Address) != 0 {
+		conditions = append(conditions, "address = '"+apt.House.Address+"'")
+	}
+
+	if len(apt.House.Corpus) != 0 {
+		conditions = append(conditions, "corpus = '"+apt.House.Corpus+"'")
+	}
+
+	if apt.House.Floors != 0 {
+		conditions = append(conditions, fmt.Sprint("floors = ", apt.House.Floors))
+	}
+
+	return strings.Join(conditions, " AND ")
 }
