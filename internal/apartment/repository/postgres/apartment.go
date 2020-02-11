@@ -2,6 +2,7 @@ package postgres
 
 import (
 	"context"
+	"database/sql"
 	"fmt"
 	"github.com/jmoiron/sqlx"
 	_ "github.com/lib/pq" // postgres driver
@@ -20,13 +21,13 @@ type apt struct {
 	Address      string
 	Corpus       string
 	Floors       int
-	Name         string
-	MinAptNumber int `db:"min_apartment_number"`
-	MaxAptNumber int `db:"max_apartment_number"`
+	Name         sql.NullString
+	MinAptNumber sql.NullInt64 `db:"min_apartment_number"`
+	MaxAptNumber sql.NullInt64 `db:"max_apartment_number"`
 }
 
-func (a apt) toApartment() *models.Apartment {
-	return &models.Apartment{
+func (a *apt) toApartment() *models.Apartment {
+	apt := &models.Apartment{
 		Floor: a.Floor,
 		Rooms: a.Rooms,
 		Area:  a.Area,
@@ -38,11 +39,16 @@ func (a apt) toApartment() *models.Apartment {
 			Corpus:   a.Corpus,
 			Floors:   a.Floors,
 		},
-		ApartmentComplex: &models.ApartmentComplex{
-			Name:       a.Name,
-			Apartments: [2]int{a.MaxAptNumber, a.MaxAptNumber},
-		},
 	}
+
+	if a.Name.Valid {
+		apt.ApartmentComplex = &models.ApartmentComplex{
+			Name:       a.Name.String,
+			Apartments: [2]int{int(a.MinAptNumber.Int64), int(a.MaxAptNumber.Int64)},
+		}
+	}
+
+	return apt
 }
 
 type ApartmentRepository struct {
@@ -217,12 +223,12 @@ func (a ApartmentRepository) Get(ctx context.Context, at *models.Apartment, opts
 		"max_apartment_number " +
 		"FROM apartments " +
 		"INNER JOIN houses h on apartments.house_id = h.id " +
-		"INNER JOIN apartment_complexes ac on h.ac_name = ac.name WHERE"
+		"LEFT OUTER JOIN apartment_complexes ac on h.ac_name = ac.name WHERE"
 
 	where := generateWhere(at)
 
 	query += " " + where + " " + optsPart
-
+	fmt.Println(query)
 	rows, err := a.db.QueryxContext(ctx, query)
 	if err != nil {
 		return nil, err
