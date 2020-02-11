@@ -4,7 +4,9 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/sschiz/apartament/internal/apartment"
 	"github.com/sschiz/apartament/models"
+	"log"
 	"net/http"
+	"os"
 	"strconv"
 )
 
@@ -32,11 +34,7 @@ func (h *Handler) Create(c *gin.Context) {
 }
 
 func (h *Handler) Get(c *gin.Context) {
-	inp := new(models.Apartment)
-	if err := c.ShouldBindJSON(inp); err != nil {
-		c.AbortWithStatus(http.StatusInternalServerError)
-		return
-	}
+	inp := c.MustGet("apt").(*models.Apartment)
 
 	var opts []apartment.Option
 
@@ -87,4 +85,54 @@ func (h *Handler) Get(c *gin.Context) {
 	c.JSON(http.StatusOK, map[string]interface{}{
 		"apartments": apts,
 	})
+}
+
+func Validation() gin.HandlerFunc {
+	return func(c *gin.Context) {
+		if c.Request.Method == "GET" {
+			c.Next()
+			return
+		}
+
+		inp := c.MustGet("apt").(*models.Apartment)
+
+		if inp.Rent < 1 || inp.Rooms < 1 || inp.Area < 1 || inp.Floor < 1 || inp.House == nil {
+			c.AbortWithStatus(http.StatusBadRequest)
+			return
+		}
+
+		house := inp.House
+		if house.Floors < 1 {
+			c.AbortWithStatus(http.StatusBadRequest)
+			return
+		}
+
+		if ac := inp.ApartmentComplex; ac != nil {
+			if len(ac.Name) == 0 || ac.Apartments[0] < 1 || ac.Apartments[1] < 1 {
+				c.AbortWithStatus(http.StatusBadRequest)
+				return
+			}
+		}
+
+		c.Next()
+	}
+}
+
+func Logger() gin.HandlerFunc {
+	logger := log.New(os.Stdout, "[LOGGER] ", log.LstdFlags)
+	return func(c *gin.Context) {
+		apt := new(models.Apartment)
+		if err := c.ShouldBindJSON(apt); err != nil {
+			c.AbortWithStatus(http.StatusInternalServerError)
+			return
+		}
+
+		logger.Printf("Got Apartment: %#v", apt)
+		logger.Printf("House: %#v", apt.House)
+		logger.Printf("Apartment complex: %#v", apt.ApartmentComplex)
+
+		c.Set("apt", apt)
+
+		c.Next()
+	}
 }

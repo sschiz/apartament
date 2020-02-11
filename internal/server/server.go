@@ -33,8 +33,9 @@ func NewApp() *App {
 func (a *App) Run(port string) error {
 	router := gin.Default()
 	router.Use(
-		gin.Logger(),
-		//gin.Recovery(),
+		apthttp.Logger(),
+		apthttp.Validation(),
+		gin.Recovery(),
 	)
 
 	api := router.Group("/api")
