@@ -49,10 +49,12 @@ type ApartmentRepository struct {
 	db *sqlx.DB
 }
 
+// NewApartmentRepository creates ApartmentRepository
 func NewApartmentRepository(db *sqlx.DB) *ApartmentRepository {
 	return &ApartmentRepository{db: db}
 }
 
+// Create creates new apartment using transactions
 func (a ApartmentRepository) Create(ctx context.Context, apartment *models.Apartment) error {
 	tx, err := a.db.BeginTxx(ctx, nil)
 
@@ -171,6 +173,7 @@ func addHouse(ctx context.Context, tx *sqlx.Tx, house *models.House, acName *str
 	return
 }
 
+// Get returns apartments from DB by incoming at
 func (a ApartmentRepository) Get(ctx context.Context, at *models.Apartment, opts ...apartment.Option) ([]*models.Apartment, error) {
 	if at.House == nil || len(at.House.City) == 0 {
 		return nil, apartment.ErrWrongHouse
